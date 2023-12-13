@@ -1,26 +1,60 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>new QR Code Scanner</title>
+    <title>Card Reader</title>
     <script src="https://rawgit.com/schmich/instascan-builds/master/instascan.min.js"></script>
 </head>
 <body>
+    <h1>Card Reader</h1>
     <video id="preview" style="width:100%; max-width:480px;"></video>
+    <div>
+        <button onclick="scanCard()">Scan Card</button>
+    </div>
+    <div id="cardInfoDisplay"></div>
+
     <script>
         let scanner = new Instascan.Scanner({ video: document.getElementById('preview'), mirror: false });
+        
+        const cards = [
+            { 
+                cardNumber: "123456789",
+                password: "pass123",
+                ownerName: "John Doe",
+                balance: 500
+            },
+            // Add more card objects as needed
+        ];
 
-        scanner.addListener('scan', function (content) {
-        });
+        function scanCard() {
+            scanner.addListener('scan', function (content) {
+                const scannedCard = cards.find(card => card.cardNumber === content);
+                if (scannedCard) {
+                    displayCardInfo(scannedCard);
+                } else {
+                    alert("Card not recognized.");
+                }
+            });
 
-        Instascan.Camera.getCameras().then(function (cameras) {
-            if (cameras.length > 0) {
-                scanner.start(cameras[cameras.length - 1]);
-            } else {
-                console.error('No cameras found.');
-            }
-        }).catch(function (e) {
-            console.error(e);
-        });
+            Instascan.Camera.getCameras().then(function (cameras) {
+                if (cameras.length > 0) {
+                    scanner.start(cameras[cameras.length - 1]);
+                } else {
+                    console.error('No cameras found.');
+                }
+            }).catch(function (e) {
+                console.error(e);
+            });
+        }
+
+        function displayCardInfo(card) {
+            const cardInfoDisplay = document.getElementById('cardInfoDisplay');
+            cardInfoDisplay.innerHTML = `
+                <h2>Card Information</h2>
+                <p><strong>Card Number:</strong> ${card.cardNumber}</p>
+                <p><strong>Owner's Name:</strong> ${card.ownerName}</p>
+                <p><strong>Balance:</strong> $${card.balance}</p>
+            `;
+        }
     </script>
 </body>
 </html>
