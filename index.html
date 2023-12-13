@@ -11,49 +11,64 @@
         <button onclick="scanCard()">Scan Card</button>
     </div>
     <div id="cardInfoDisplay"></div>
-
+    <div style="float:right;">
+        <label for="cardNumberInput">Card Number:</label>
+        <input type="text" id="cardNumberInput" name="cardNumberInput" maxlength="8">
+    </div>
     <script>
         let scanner = new Instascan.Scanner({ video: document.getElementById('preview'), mirror: false });
         
         const cards = [
             { 
                 cardNumber: "123456789",
-                password: "pass123",
+                password "4321",
                 ownerName: "John Doe",
                 balance: 500
+            },
+            { 
+                cardNumber: "987654321",
+                password "1234",
+                ownerName: "mamad",
+                balance: 1000
             },
             // Add more card objects as needed
         ];
 
         function scanCard() {
-            scanner.addListener('scan', function (content) {
-                const scannedCard = cards.find(card => card.cardNumber === content);
-                if (scannedCard) {
+    scanner.addListener('scan', function (content) {
+        const scannedCard = cards.find(card => card.cardNumber === content);
+        if (scannedCard) {
+            const password = prompt("Enter password:");
+            if (password === scannedCard.password) {
+                const amount = parseFloat(prompt("Enter amount:"));
+                if (!isNaN(amount) && amount > 0 && amount <= scannedCard.balance) {
+                    scannedCard.balance -= amount;
+                    const cardNumberInput = document.getElementById("cardNumberInput");
+                    const targetCard = cards.find(card => card.cardNumber === cardNumberInput.value);
+                    if (targetCard) {
+                        targetCard.balance += amount;
+                    }
                     displayCardInfo(scannedCard);
                 } else {
-                    alert("Card not recognized.");
+                    alert("Invalid amount.");
                 }
-            });
-
-            Instascan.Camera.getCameras().then(function (cameras) {
-                if (cameras.length > 0) {
-                    scanner.start(cameras[cameras.length - 1]);
-                } else {
-                    console.error('No cameras found.');
-                }
-            }).catch(function (e) {
-                console.error(e);
-            });
+            } else {
+                alert("Incorrect password.");
+            }
+        } else {
+            alert("Card not recognized.");
         }
+    });
 
-        function displayCardInfo(card) {
-            const cardInfoDisplay = document.getElementById('cardInfoDisplay');
-            cardInfoDisplay.innerHTML = `
-                <h2>Card Information</h2>
-                <p><strong>Card Number:</strong> ${card.cardNumber}</p>
-                <p><strong>Owner's Name:</strong> ${card.ownerName}</p>
-                <p><strong>Balance:</strong> $${card.balance}</p>
-            `;
+    Instascan.Camera.getCameras().then(function (cameras) {
+        if (cameras.length > 0) {
+            scanner.start(cameras[cameras.length - 1]);
+        } else {
+            console.error('No cameras found.');
+        }
+    }).catch(function (e) {
+        console.error(e);
+    });
         }
     </script>
 </body>
