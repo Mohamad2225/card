@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Card Reader</title>
+    <script src="https://rawgit.com/schmich/instascan-builds/master/instascan.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f4f4f4;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        #preview {
+            display: block;
+            margin: 20px auto;
+            max-width: 100%;
+            height: auto;
+            border: 2px solid #333;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        input {
+            padding: 10px;
+            font-size: 16px;
+            width: 100%;
+            box-sizing: border-box;
+            margin: 10px 0;
+        }
+
+        #cardInfoDisplay {
+            text-align: center;
+            margin-top: 20px;
+            padding: 10px;
+            border: 2px solid #333;
+        }
+
+        @media (max-width: 768px) {
+            button {
+                width: 100%;
+            }
+        }
+
+        button.cross {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 60px;
+            height: 60px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            position: fixed;
+            top: 20px;
+            /* Adjust the top value as needed */
+            right: 20px;
+            /* Adjust the right value as needed */
+            z-index: 9999;
+            /* Ensure the button is on top of other elements */
+        }
+
+        button.cross:before,
+        button.cross:after {
+            content: "";
+            position: absolute;
+            width: 2px;
+            height: 24px;
+            background-color: #333;
+            transition: transform 0.3s ease-in-out;
+        }
+
+        button.cross:before {
+            transform: rotate(45deg);
+        }
+
+        button.cross:after {
+            transform: rotate(-45deg);
+        }
+
+        button.cross:hover:before,
+        button.cross:hover:after {
+            transform: scale(1.2) rotate(45deg);
+        }
+    </style>
+</head>
+
+<body>
+    <button class="cross" onclick="exit()"></button>
+    <h1>Card Reader</h1>
+    <video id="preview" style="width:100%; max-width:480px;"></video>
+    <div>
+        <button id="start" onclick="scanCard()">Scan Card</button>
+        <button id="stop" onclick="stopScan()">Stop Scan</button>
+    </div>
+    <div id="cardInfoDisplay"></div>
+    <div>
+        <input type="text" id="cardNumberInput" placeholder="Enter Card Number">
+    </div>
+
+    <script>
+
+        const cards = [
+            {
+                cardNumber: "12345678",
+                password: "1234",
+                ownerName: "mohamad",
+                balance: 1000
+            },
+            {
+                cardNumber: "87654321",
+                password: "4321",
+                ownerName: "John Doe",
+                balance: 500
+            },
+            // Add more card objects as needed
+        ];
+
+        let scanner = null; // Declare the scanner variable globally
+
+        function scanCard() {
+            scanner = new Instascan.Scanner({ video: document.getElementById('preview'), mirror: false });
+
+            scanner.addListener('scan', function (content) {
+                const scannedCard = cards.find(card => card.cardNumber === content);
+                if (scannedCard) {
+                    askPassword(scannedCard);
+                } else {
+                    alert("Card not recognized.");
+                }
+            });
+
+            Instascan.Camera.getCameras().then(function (cameras) {
+                if (cameras.length > 0) {
+                    scanner.start(cameras[cameras.length - 1]);
+                } else {
+                    console.error('No cameras found.');
+                }
+            }).catch(function (e) {
+                console.error(e);
+            });
+        }
+
+        function stopScan() {
+            if (scanner !== null) {
+                scanner.stop();
+            }
+        }
+
+        function askPassword(card) {
+            const password = prompt("Enter Password:");
+            if (password === card.password) {
+                askAmount(card);
+            } else {
+                alert("Invalid password.");
+            }
+        }
+
+        function askAmount(card) {
+            const amount = prompt("Enter Amount:");
+            const parsedAmount = parseInt(amount);
+            if (!isNaN(parsedAmount)) {
+                if (parsedAmount <= card.balance) {
+                    updateBalance(card, parsedAmount);
+                } else {
+                    alert("Insufficient balance.");
+                }
+            } else {
+                alert("Invalid amount.");
+            }
+        }
+
+        function updateBalance(card, amount) {
+            // Find the index of the scanned card in the array
+            const scannedCardIndex = cards.findIndex(c => c.cardNumber === card.cardNumber);
+            if (scannedCardIndex !== -1) {
+                // Subtract the amount from the scanned card's balance
+                cards[scannedCardIndex].balance -= amount;
+
+                // Find the index of the card entered in the text box in the array
+                const enteredCardNumber = document.getElementById('cardNumberInput').value;
+                const enteredCardIndex = cards.findIndex(c => c.cardNumber === enteredCardNumber);
+                if (enteredCardIndex !== -1) {
+                    // Add the amount to the entered card's balance
+                    cards[enteredCardIndex].balance += amount;
+                    sendArrayToServer()
+                    // Update the display for both cards
+                    displayCardInfo(cards[scannedCardIndex]);
+                    displayCardInfo(cards[enteredCardIndex]);
+                } else {
+                    alert("Entered card number not recognized.");
+                }
+            } else {
+                alert("Scanned card not recognized.");
+            }
+        }
+
+        function displayCardInfo(card) {
+            const cardInfoDisplay = document.getElementById('cardInfoDisplay');
+            cardInfoDisplay.innerHTML = `
+                <h2>Card Information</h2>
+                <p><strong>Card Number:</strong> ${card.cardNumber}</p>
+                <p><strong>Owner's Name:</strong> ${card.ownerName}</p>
+                <p><strong>Balance:</strong> $${card.balance}</p>
+            `;
+
+            // Set a timeout to hide the card information after 5 seconds
+            setTimeout(function () {
+                cardInfoDisplay.innerHTML = '';
+            }, 5000);
+        }
+
+
+        function sendArrayToServer() {
+            const xhr = new XMLHttpRequest();
+            const url = 'http://mv2007.freehost.io/apply.php';
+            const params = 'cards=' + JSON.stringify(cards);
+            xhr.open('GET', url + '?' + params, true);
+            xhr.send();
+
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    // Handle the response from the server if needed
+                }
+            };
+        }
+
+
+
+        function getCards() {
+            const xhr = new XMLHttpRequest();
+            const url = 'http://mv2007.freehost.io/get.php';
+            xhr.open('GET', url, true);
+            xhr.send();
+
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    if (xhr.status === 200) {
+                        const receivedCards = JSON.parse(xhr.responseText);
+                        if (Array.isArray(receivedCards)) {
+                            cards = receivedCards; // Apply the received array to the global 'cards' variable
+                        } else {
+                            console.error('Invalid data received from server');
+                        }
+                    } else {
+                        console.error('Failed to retrieve data from server');
+                    }
+                }
+            };
+        }
+
+        document.addEventListener('DOMContentLoaded', function () { getCards() });
+        
+        function exit() {
+            window.location.href = "https://mohamad2225.github.io/card/";
+        }
+
+    </script>
+</body>
+
+</html>

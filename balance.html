@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Get Balance</title>
+    <script src="https://rawgit.com/schmich/instascan-builds/master/instascan.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #f4f4f4;
+        }
+        
+        #preview {
+            width: 100%;
+            max-width: 480px;
+            border: 2px solid #333;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        p {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+        button.cross {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 60px;
+            height: 60px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            position: fixed;
+            top: 20px; /* Adjust the top value as needed */
+            right: 20px; /* Adjust the right value as needed */
+            z-index: 9999; /* Ensure the button is on top of other elements */
+        }
+        
+        button.cross:before,
+        button.cross:after {
+            content: "";
+            position: absolute;
+            width: 2px;
+            height: 24px;
+            background-color: #333;
+            transition: transform 0.3s ease-in-out;
+        }
+        
+        button.cross:before {
+            transform: rotate(45deg);
+        }
+        
+        button.cross:after {
+            transform: rotate(-45deg);
+        }
+        
+        button.cross:hover:before,
+        button.cross:hover:after {
+            transform: scale(1.2) rotate(45deg);
+        }
+    </style>
+</head>
+
+<body>
+    <button class="cross" onclick="exit()"></button>
+    <video id="preview" style="width:100%; max-width:480px;"></video>
+    <button onclick="startScan()">Start Scan</button>
+    <button onclick="stopScan()">Stop Scan</button>
+    <script>
+        let cards = [];
+
+        let scanner = new Instascan.Scanner({ video: document.getElementById('preview'), mirror: false });
+        let selectedCard = null;
+
+
+        function getCards() {
+            const xhr = new XMLHttpRequest();
+            const url = 'http://mv2007.freehost.io/get.php';
+            xhr.open('GET', url, true);
+            xhr.send();
+
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    if (xhr.status === 200) {
+                        const receivedCards = JSON.parse(xhr.responseText);
+                        if (Array.isArray(receivedCards)) {
+                            cards = receivedCards; // Apply the received array to the global 'cards' variable
+                        } else {
+                            console.error('Invalid data received from server');
+                        }
+                    } else {
+                        console.error('Failed to retrieve data from server');
+                    }
+                }
+            };
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {getCards()});
+
+
+        function startScan() {
+            scanner.addListener('scan', function (content) {
+                getCards()
+                const scannedCard = cards.find(card => card.cardNumber === content);
+                if (scannedCard) {
+                    const password = prompt("Enter 4-digit password");
+                    if (password === scannedCard.password) {
+                        selectedCard = scannedCard;
+                        displayBalance();
+                    } else {
+                        alert("Incorrect password");
+                    }
+                } else {
+                    alert("Card not found");
+                }
+            });
+            Instascan.Camera.getCameras().then(function (cameras) {
+                if (cameras.length > 0) {
+                    scanner.start(cameras[cameras.length - 1]);
+                } else {
+                    console.error('No cameras found.');
+                }
+            }).catch(function (e) {
+                console.error(e);
+            });
+        }
+
+        function stopScan() {
+            scanner.stop();
+        }
+
+        function displayBalance() {
+            const balanceDisplay = document.createElement('p');
+            balanceDisplay.textContent = `Owner: ${selectedCard.ownerName}, Balance: ${selectedCard.balance}`;
+            document.body.appendChild(balanceDisplay);
+        }
+        function exit() {
+            window.location.href = "https://mohamad2225.github.io/card/";
+        }
+        
+    </script>
+</body>
+
+</html>
